@@ -1,0 +1,6 @@
+912151ad36a764faf6a1e250623897bf *DESCRIPTION
+6862c5791f3e9f637b70904b921d369e *NAMESPACE
+7a60f910b049035d3def15e16ce94366 *R/predict.rotationForest.R
+f7eb4fae720bacdd86092059c4fa0f7d *R/rotationForest.R
+d529f044d0c0608aa024033d08b25204 *man/predict.rotationForest.Rd
+39ba3f3476c18dca87c1ef4713eb13d6 *man/rotationForest.Rd
