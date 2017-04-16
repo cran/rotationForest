@@ -1,6 +1,8 @@
 import(rpart)
+importFrom("stats", "prcomp", "predict")
 
 export(rotationForest)
+export(rotationForestNews)
 S3method(predict, rotationForest)
 
 

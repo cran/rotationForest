@@ -2,11 +2,12 @@
 #'
 #' \code{rotationForest} implements an ensemble method where each base classifier (tree) is fit on the principal components of the variables of random partitions of the feature set.
 #' 
-#' @param x A data frame of predictors (numeric, or integer). Categorical variables need to be transformed to indicator (dummy) variables.
+#' @param x A data frame of predictors (numeric, or integer). Categorical variables need to be transformed to indicator (dummy) variables. At minimum \code{x} requires two columns.
 #' @param y A factor containing the response vector. Only \{0,1\} is allowed.
 #' @param K The number of variable subsets. The default is the value \code{K} that results in three features per subset.
-#' @param L The number of base classfiers (trees using the \code{rpart} package). The default is 10.
-#' @param ... Arguments to \code{rpart.control} of the \code{rpart} package. Firt run \code{library(rpart)}.
+#' @param L The number of base classifiers (trees using the \code{rpart} package). The default is 10.
+#' @param verbose Boolean. Should information about the subsets be printed?
+#' @param ... Arguments to \code{rpart.control}. First run \code{library(rpart)}.
 #' @examples
 #' data(iris)
 #' y <- as.factor(ifelse(iris$Species[1:100]=="setosa",0,1))
@@ -19,35 +20,52 @@
 #'   \item{models}{A list of trees.}
 #'   \item{loadings}{A list of loadings.}
 #'   \item{columnnames}{Column names of x.}
-#' @author Authors: Michel Ballings and Dirk Van den Poel, Maintainer: \email{Michel.Ballings@@GMail.com}
+#' @author Michel Ballings and Dirk Van den Poel, Maintainer: \email{Michel.Ballings@@GMail.com}
 #' @keywords classification
-rotationForest <- function(x,y,K=round(ncol(x)/3,0),L=10,...){
+rotationForest <- function(x,y,K=round(ncol(x)/3,0),L=10, verbose=FALSE, ...){
+    if (K >= ncol(x)) stop("K should not be greater than or equal to the number of columns in x")
+    if (all(sapply(x, is.numeric)) == FALSE) stop("All features in x need to be of type numeric")
 
-    x <- data.frame(sapply(x,as.numeric))
-		#reset K as to the remainder of the number of features and K should is 0
+    if (K > floor(ncol(x) / 2)) stop(cat('The maximum K for your data is',floor(ncol(x) / 2)))
+    if (K == 0) stop('The minimum K is 1')
+
+    sets <- rep(floor(ncol(x)/K),K)
+
+    overflow <- rep(1, ncol(x)-sum(sets))
+    overflow <- c(overflow, rep(0,K-length(overflow)))
+    overflow <- overflow[sample(1:length(overflow),length(overflow),FALSE)]
+
+    subsetsizes <- sets + overflow
+    if (verbose) cat("Number of subsets: ", K ,". Number of variables per respective subset: ", sep="") ; if (verbose) cat(subsetsizes, "\n", sep=" ")
+    
+    fact <- factor(rep(1:K, subsetsizes))
+    
+    
+    
+    #reset K as to the remainder of the number of features and K should is 0
     #%% moduls
-		while (ncol(x) %% K != 0) {
-									K <- K - 1
-									}
+		# while (ncol(x) %% K != 0) {
+		# 							K <- K - 1
+		# 							}
+		# 
+		# #calculate number of features M=n/K per subset
+		# M <- round(ncol(x)/K)
 
-		#calculate number of features M=n/K per subset
-		M <- round(ncol(x)/K)
 
-
-	predicted <- list()
-	fit <- numeric()
-	Ri <- list()
-	Ria <- list()
-	fit <- list()
-  predicted <- matrix(NA,nrow=nrow(x),ncol=L)
-			
-	subsets <- list()
-
-	SelectedClass<- list()
-	IndependentsClassSubset<- list()
-	IndependentsClassSubsetBoot<- list()
-	pcdata <- list()
-	loadings <- list()
+  	predicted <- list()
+  	fit <- numeric()
+  	Ri <- list()
+  	Ria <- list()
+  	fit <- list()
+    predicted <- matrix(NA,nrow=nrow(x),ncol=L)
+  			
+  	subsets <- list()
+  
+  	SelectedClass<- list()
+  	IndependentsClassSubset<- list()
+  	IndependentsClassSubsetBoot<- list()
+  	pcdata <- list()
+  	loadings <- list()
 
 
 
@@ -58,9 +76,9 @@ for (i in 1:L) {
 		#Split F(the feature set) randomly into K subsets: Fi,j (for j= 1...K)
       
 			#randomize order of variables
-			Independents <- x[,sample(1:ncol(x),ncol(x))]
+			# Independents <- x[,sample(1:ncol(x),ncol(x))]
 			
-			n <- 0
+			# n <- 0
 
 			subsets[[i]] <- list()
 
@@ -70,6 +88,7 @@ for (i in 1:L) {
 			pcdata[[i]] <- list()
 			loadings[[i]] <- list()
 
+			varIndPerSubset <- split(sample(1:ncol(x),ncol(x),FALSE), fact)
 		#For j=1...K (this is n in subsets[[n]]
 			for (j in seq(1,K)) {
 				
@@ -78,11 +97,13 @@ for (i in 1:L) {
 
 				#let Xi,j be the dataset X for the feature set Fi,j
 					
-					n <- n + M
+					# n <- n + M
 
-					subsets[[i]][[j]] <- data.frame(Independents[,(n-(M-1)):n],y)
-
-									
+					# subsets[[i]][[j]] <- data.frame(Independents[,(n-(M-1)):n],y)
+          # subsets[[i]][[j]] <- data.frame(x[,(n-(M-1)):n],y)
+					subsets[[i]][[j]] <- data.frame(x[,varIndPerSubset[[j]]],y)
+							          
+							          
 				#Eliminate from Xi,j a random subset of classes
 
           SelectedClass[[i]][[j]]<- as.integer(sample(levels(as.factor(y)),1))
@@ -93,9 +114,11 @@ for (i in 1:L) {
 					IndependentsClassSubsetBoot[[i]][[j]] <- IndependentsClassSubset[[i]][[j]][sample(1:dim(IndependentsClassSubset[[i]][[j]])[1], round(0.75*nrow(IndependentsClassSubset[[i]][[j]])), replace = TRUE),]
 	
 				#Apply PCA on XijBoot to obtain the coefficients in a matrix Ci,j (here called loadings)
-					pcdata[[i]][[j]] <- princomp(IndependentsClassSubsetBoot[[i]][[j]][,!colnames(IndependentsClassSubsetBoot[[i]][[j]]) %in% "y"])
-          loadings[[i]][[j]] <- pcdata[[i]][[j]]$loadings[,]
-
+					# pcdata[[i]][[j]] <- princomp(IndependentsClassSubsetBoot[[i]][[j]][,!colnames(IndependentsClassSubsetBoot[[i]][[j]]) %in% "y"])
+					pcdata[[i]][[j]] <- prcomp(IndependentsClassSubsetBoot[[i]][[j]][,!colnames(IndependentsClassSubsetBoot[[i]][[j]]) %in% "y"])
+          # loadings[[i]][[j]] <- pcdata[[i]][[j]]$loadings[,]
+          loadings[[i]][[j]] <- pcdata[[i]][[j]]$rotation
+          
 					#rename columns with coefficients so they can be merged properly
           #colnames(loadings[[i]][[j]]) <- gsub("V", "a",dimnames(loadings[[i]][[j]])[[1]])
 	        colnames(loadings[[i]][[j]]) <- dimnames(loadings[[i]][[j]])[[1]]
@@ -136,7 +159,7 @@ for (i in 1:L) {
 
 
 	#############build classifier Di using (X Ria, y) as the training set
-
+    
 		fit[[i]] <- rpart(y~ ., method="class", data=final,...)
 
 

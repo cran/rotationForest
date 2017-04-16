@@ -2,7 +2,7 @@
 #'
 #' Prediction of new data using rotationForest.
 #' 
-#' @param object An object of class \code{rotationForest}, as created by the function \code{rotationForest}
+#' @param object An object of class \code{rotationForest}
 #' @param newdata A data frame with the same predictors as in the training data.
 #' @param all Return the predictions per tree instead of the average.
 #' @param ... Not used currently.
@@ -15,11 +15,11 @@
 #' @references Rodriguez, J.J., Kuncheva, L.I., 2006. Rotation forest: A new classifier ensemble method. IEEE Trans. Pattern Anal. Mach. Intell. 28, 1619-1630. doi:10.1109/TPAMI.2006.211
 #' @seealso \code{\link{rotationForest}}
 #' @return A vector containing the response scores.
-#' @author Authors: Michel Ballings and Dirk Van den Poel, Maintainer: \email{Michel.Ballings@@GMail.com}
+#' @author Michel Ballings and Dirk Van den Poel, Maintainer: \email{Michel.Ballings@@GMail.com}
 #' @method predict rotationForest
 #' @keywords classification
 predict.rotationForest <- function(object,newdata,all=FALSE,...){
-  newdata <- data.frame(sapply(newdata,as.numeric))
+  newdata <- data.frame(sapply(newdata,as.numeric,simplify=FALSE))
   #check if column names are in same order and if are the same number of columns
   if (!identical(colnames(newdata),object$columnnames)) stop("Variable names and/or order of variables in newdata is not identical to training set. Please check if variables are exactly the same in both sets.")
   predicted <- matrix(NA,nrow=nrow(newdata),ncol=length(object$models))
